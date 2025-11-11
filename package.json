@@ -5,9 +5,12 @@
   "main": "src/index.html",
   "scripts": {
     "start": "live-server src",
+    "build": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; New-Item -ItemType Directory -Force dist; Copy-Item -Recurse src/* dist/\"",
+    "deploy": "npm run build && gh-pages -d dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
+    "gh-pages": "^6.1.0",
     "live-server": "^1.2.2"
   }
 }
