@@ -133,14 +133,65 @@ export function formatPhonePreserveCaret(inputEl) {
  */
 export function attachPhoneFormatter(inputEl) {
   if (!inputEl) return;
-  const handler = () => {
-    // Use rAF to reduce conflicts with some IME/input methods
-    requestAnimationFrame(() => formatPhonePreserveCaret(inputEl));
+
+  // Heuristic helpers to avoid stomping browser autofill / form-history UI.
+  let lastValue = inputEl.value || '';
+  let autofillTimeout = null;
+
+  // Handler used for both 'input' and 'keyup'. For keyup we filter to
+  // only run on keys that change the input value or navigation/backspace.
+  const handler = (e) => {
+    const nowVal = inputEl.value || '';
+    const prevDigits = (lastValue.match(/\d/g) || []).length;
+    const nowDigits = (nowVal.match(/\d/g) || []).length;
+    const digitDelta = nowDigits - prevDigits;
+
+    // Heuristic: large sudden increase in digits or synthetic/unknown inputType
+    // likely indicates autofill/form-history. Delay formatting slightly so the
+    // browser UI can finish.
+    const likelyAutofill = e && e.type === 'input' && (
+      digitDelta >= 4 || !e.inputType || e.inputType === '' || e.isTrusted === false
+    );
+
+    if (likelyAutofill) {
+      clearTimeout(autofillTimeout);
+      autofillTimeout = setTimeout(() => {
+        requestAnimationFrame(() => {
+          formatPhonePreserveCaret(inputEl);
+          lastValue = inputEl.value || '';
+        });
+      }, 250);
+      return;
+    }
+
+    // If this was a keyup event, ignore modifier keys and others that don't
+    // affect the input text. Run for digits, Backspace, Delete, and arrows.
+    if (e && e.type === 'keyup') {
+      const key = e.key;
+      const allowed = (
+        /^(\d|[0-9])$/.test(key) ||
+        key === 'Backspace' || key === 'Delete' ||
+        key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter'
+      );
+      if (!allowed) return;
+    }
+
+    // Regular behavior: format immediately and update lastValue
+    clearTimeout(autofillTimeout);
+    requestAnimationFrame(() => {
+      formatPhonePreserveCaret(inputEl);
+      lastValue = inputEl.value || '';
+    });
   };
+
   inputEl.addEventListener('input', handler);
-  // Format initial value
-  formatPhonePreserveCaret(inputEl);
-  return () => inputEl.removeEventListener('input', handler);
+  inputEl.addEventListener('keyup', handler);
+
+  // Return remover to allow unregistering both listeners
+  return () => {
+    inputEl.removeEventListener('input', handler);
+    inputEl.removeEventListener('keyup', handler);
+  };
 }
 
 

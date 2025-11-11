@@ -1,4 +1,4 @@
-npm installname: Deploy to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:

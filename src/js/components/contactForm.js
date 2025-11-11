@@ -1,6 +1,6 @@
 import { q, getValue } from '../utils/dom.js';
 import { buildMailtoLink } from '../utils/mailto.js';
-import { formatPhoneInput, normalizeEmailInput, attachEmailDatalist } from '../utils/format.js';
+import { normalizeEmailInput, attachEmailDatalist, attachPhoneFormatter } from '../utils/format.js';
 
 const TO_EMAIL = 'lewis315@hotmail.com';
 
@@ -110,13 +110,8 @@ export default {
     const phoneEl = document.querySelector('#phone');
     const emailEl = document.querySelector('#email');
     if (phoneEl) {
-      phoneEl.addEventListener('input', (e) => {
-        const pos = phoneEl.selectionStart || phoneEl.value.length;
-        const formatted = formatPhoneInput(phoneEl.value);
-        phoneEl.value = formatted;
-        // try to keep caret near end (best-effort)
-        phoneEl.selectionStart = phoneEl.selectionEnd = Math.min(formatted.length, pos + 1);
-      });
+      // attach the formatter which preserves caret and formats on each keypress/input
+      attachPhoneFormatter(phoneEl);
     }
 
     if (emailEl) {
