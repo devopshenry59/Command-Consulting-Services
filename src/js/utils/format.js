@@ -69,6 +69,81 @@ export function formatPhoneInput(value) {
 }
 
 
+/**
+ * Format the input element's phone value while preserving the caret/selection.
+ * This counts digits to the left of the caret, reformats the whole value
+ * using `formatPhoneInput`, then restores the caret to the logical place
+ * relative to the digits (not raw characters).
+ *
+ * @param {HTMLInputElement} inputEl
+ */
+export function formatPhonePreserveCaret(inputEl) {
+  if (!inputEl) return;
+
+  // Save previous selection/caret
+  const start = inputEl.selectionStart ?? 0;
+  const end = inputEl.selectionEnd ?? start;
+
+  const valueBefore = inputEl.value || '';
+
+  // Count digits before caret and in selection
+  const digitsBeforeCaret = (valueBefore.slice(0, start).match(/\d/g) || []).length;
+  const digitsInSelection = (valueBefore.slice(start, end).match(/\d/g) || []).length;
+
+  // Compute new formatted value
+  const newFormatted = formatPhoneInput(valueBefore);
+
+  // Replace the value
+  inputEl.value = newFormatted;
+
+  // Find caret position in newFormatted that corresponds to digitsBeforeCaret
+  let digitCount = 0;
+  let newCaretPos = newFormatted.length;
+  for (let i = 0; i < newFormatted.length; i++) {
+    if (/\d/.test(newFormatted[i])) digitCount++;
+    if (digitCount === digitsBeforeCaret) {
+      newCaretPos = i + 1; // place caret just after that digit
+      break;
+    }
+  }
+
+  // If there was a selection, restore selection length (in digits)
+  if (digitsInSelection > 0) {
+    const targetDigitCount = digitsBeforeCaret + digitsInSelection;
+    digitCount = 0;
+    let newSelEnd = newFormatted.length;
+    for (let i = 0; i < newFormatted.length; i++) {
+      if (/\d/.test(newFormatted[i])) digitCount++;
+      if (digitCount === targetDigitCount) {
+        newSelEnd = i + 1;
+        break;
+      }
+    }
+    inputEl.setSelectionRange(newCaretPos, newSelEnd);
+  } else {
+    inputEl.setSelectionRange(newCaretPos, newCaretPos);
+  }
+}
+
+/**
+ * Attach the phone formatter to an input element. Uses the `input` event and
+ * preserves caret position via `formatPhonePreserveCaret`.
+ *
+ * @param {HTMLInputElement} inputEl
+ */
+export function attachPhoneFormatter(inputEl) {
+  if (!inputEl) return;
+  const handler = () => {
+    // Use rAF to reduce conflicts with some IME/input methods
+    requestAnimationFrame(() => formatPhonePreserveCaret(inputEl));
+  };
+  inputEl.addEventListener('input', handler);
+  // Format initial value
+  formatPhonePreserveCaret(inputEl);
+  return () => inputEl.removeEventListener('input', handler);
+}
+
+
 export function normalizeEmailInput(value) {
   if (!value) return '';
   return value.trim().toLowerCase();
